@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import configparser
 import os
-
 import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -27,14 +26,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(__file__), '../settings.properties'))
 
-SECRET_KEY = config['DEFAULT']['SECRET_KEY']
+settings_file = os.path.join(BASE_DIR, 'settings.properties')  # Poprawiona ścieżka
+
+if os.path.exists(settings_file):
+    config.read(settings_file)
+    SECRET_KEY = config['DEFAULT']['SECRET_KEY']
+else:
+    # Fallback jeśli plik nie istnieje
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-fallback-key-change-in-production')
+
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
+
 
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '.railway.app',
+    '.render.com',
+    '.onrender.com',
     '.github.io',  # Dla GitHub Pages
     'annczar.github.io',  # Twój konkretny GitHub Pages
 ]
@@ -55,6 +65,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -84,7 +95,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'WebApp.wsgi.application'
-# Database - Railway PostgreSQL lub local SQLite
+# Database - SQLite lokalnie, PostgreSQL na produkcji (Render)
 if 'DATABASE_URL' in os.environ:
     DATABASES = {
         'default': dj_database_url.parse(os.environ.get('DATABASE_URL'))
@@ -99,16 +110,28 @@ else:
 
 # Static files
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# This production code might break development mode, so we check whether we're in DEBUG mode
+if not DEBUG:
+    # Tell Django to copy static assets into a path called `staticfiles` (this is specific to Render)
+    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+    # Enable the WhiteNoise storage backend, which compresses static files to reduce disk use
+    # and renames the files with unique names for each version to support long-term caching
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 CORS_ALLOWED_ORIGINS = [
+    "https://annczar.github.io",
+    "http://localhost:3000",
+    "http://localhost:5173",
     "http://localhost:5174",
-    "http://localhost:5173",# React dev server
-    "http://localhost:3000",  # STANDART  React port
-    "http://127.0.0.1:5174",  # ALTERNATIVE host
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
 ]
 
-CORS_ALLOW_CREDENTIALS = True
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
 
 CORS_ALLOW_METHODS = [
     'GET',
