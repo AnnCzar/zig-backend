@@ -46,6 +46,7 @@ ALLOWED_HOSTS = [
     '.render.com',
     '.onrender.com',
     '.github.io',  # Dla GitHub Pages
+    'zig-backend-nnq5.onrender.com',
     'annczar.github.io',  # Twój konkretny GitHub Pages
 ]
 
